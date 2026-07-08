@@ -71,7 +71,39 @@ final config = BusinessPresets.pharmacy;         // 💊 Pharmacy
 
 The AI prompts, forms, and inventory columns all update automatically. No other code changes needed.
 
-### 🛠 Or define your own in 10 lines:
+### 🏪 8 Ready-Made Business Agents — Plug & Play
+
+Each preset is a fully configured AI agent — custom fields, smart prompts, and inventory logic built in.
+
+| | Business | AI reads from invoices | Identifier |
+|--|---------|----------------------|------------|
+| 📱 | **Mobile Shop** | Brand · Model · Storage · Color | IMEI |
+| 💊 | **Pharmacy** | Medicine Name · Dosage · Batch No · Expiry | Batch No |
+| 🛒 | **Grocery Store** | Product Name · Brand · Category · Unit | — |
+| 👗 | **Clothing Store** | Brand · Type · Size · Color · Fabric · Article No | Article No |
+| 🔧 | **Auto Parts** | Part Name · Part Number · Brand · Compatible Vehicle | Part No |
+| 💻 | **Electronics Shop** | Brand · Model · Category · Specs | Serial No |
+| 📚 | **Bookstore** | Title · Author · Publisher · ISBN · Edition | ISBN |
+| 🍕 | **Restaurant / Cafe** | Ingredient · Category · Unit · Brand | — |
+
+Switch between them with **one line of code:**
+
+```dart
+final config = BusinessPresets.mobileShop;    // 📱 Mobile Shop
+final config = BusinessPresets.pharmacy;       // 💊 Pharmacy
+final config = BusinessPresets.groceryStore;   // 🛒 Grocery Store
+final config = BusinessPresets.clothingStore;  // 👗 Clothing Shop
+final config = BusinessPresets.autoParts;      // 🔧 Auto Parts
+final config = BusinessPresets.electronicsShop;// 💻 Electronics
+final config = BusinessPresets.bookstore;      // 📚 Bookstore
+final config = BusinessPresets.restaurant;     // 🍕 Restaurant
+```
+
+The AI prompt, forms, and inventory columns update automatically — no other changes needed.
+
+---
+
+### 🛠 Or build your own agent in 10 lines:
 
 ```dart
 final myConfig = BusinessConfig(
