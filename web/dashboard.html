@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ShopAI — Business Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root { --accent: #6366f1; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8fafc; }
+  .card { background: #fff; border-radius: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .stat-card { transition: transform .15s; }
+  .stat-card:hover { transform: translateY(-2px); }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .badge-cash     { background:#dcfce7; color:#16a34a; }
+  .badge-card     { background:#dbeafe; color:#2563eb; }
+  .badge-transfer { background:#ede9fe; color:#7c3aed; }
+  .nav-item { cursor:pointer; padding: 10px 16px; border-radius: 10px; display:flex; align-items:center; gap:10px; transition:background .15s; }
+  .nav-item:hover { background: rgba(99,102,241,.08); }
+  .nav-item.active { background: rgba(99,102,241,.12); color: #6366f1; font-weight: 600; }
+  .tab { display:none; }
+  .tab.active { display:block; }
+  input, select { border: 1px solid #e2e8f0; border-radius:8px; padding:8px 12px; font-size:14px; outline:none; }
+  input:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.1); }
+  table { width:100%; border-collapse:collapse; }
+  th { text-align:left; padding:10px 16px; font-size:12px; font-weight:600; color:#64748b; background:#f8fafc; text-transform:uppercase; letter-spacing:.05em; }
+  td { padding:12px 16px; border-top:1px solid #f1f5f9; font-size:14px; }
+  tr:hover td { background: #fafbff; }
+  .empty { text-align:center; padding:48px; color:#94a3b8; }
+  .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 18px; border-radius:10px; font-size:14px; font-weight:500; cursor:pointer; border:none; transition:all .15s; }
+  .btn-primary { background:#6366f1; color:#fff; }
+  .btn-primary:hover { background:#4f46e5; }
+  .btn-ghost { background:#f1f5f9; color:#475569; }
+  .btn-ghost:hover { background:#e2e8f0; }
+  #toast { position:fixed; bottom:24px; right:24px; background:#1e293b; color:#fff; padding:12px 20px; border-radius:12px; font-size:14px; opacity:0; transition:opacity .3s; pointer-events:none; z-index:999; }
+  #toast.show { opacity:1; }
+  .loader { display:inline-block; width:18px; height:18px; border:2px solid #e2e8f0; border-top-color:#6366f1; border-radius:50%; animation:spin .6s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+<!-- ── Sidebar ────────────────────────────────────────────────────────────── -->
+<aside class="w-60 bg-white border-r border-slate-100 flex flex-col p-4 shrink-0">
+  <div class="flex items-center gap-3 px-2 py-4 mb-4">
+    <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-lg" style="background:#6366f1">S</div>
+    <div>
+      <div class="font-bold text-slate-800 text-sm" id="shopName">ShopAI</div>
+      <div class="text-xs text-slate-400" id="businessType">Loading…</div>
+    </div>
+  </div>
+
+  <nav class="flex flex-col gap-1 flex-1">
+    <div class="nav-item active" onclick="showTab('dashboard')">
+      <span>📊</span><span>Dashboard</span>
+    </div>
+    <div class="nav-item" onclick="showTab('inventory')">
+      <span>📦</span><span>Inventory</span>
+    </div>
+    <div class="nav-item" onclick="showTab('purchases')">
+      <span>🛒</span><span>Purchases</span>
+    </div>
+    <div class="nav-item" onclick="showTab('sales')">
+      <span>💰</span><span>Sales</span>
+    </div>
+  </nav>
+
+  <div class="mt-auto pt-4 border-t border-slate-100">
+    <div class="text-xs text-slate-400 px-2 mb-2">API Endpoint</div>
+    <input id="apiUrl" type="text" placeholder="https://your-server.com/api"
+           class="w-full text-xs" onchange="saveApiUrl()" />
+    <div class="text-xs text-slate-400 px-2 mt-2 mb-1">Auth Token</div>
+    <input id="authToken" type="password" placeholder="your-token"
+           class="w-full text-xs" onchange="saveToken()" />
+    <button class="btn btn-primary w-full mt-3 justify-center" onclick="loadAll()">
+      Connect
+    </button>
+  </div>
+</aside>
+
+<!-- ── Main ───────────────────────────────────────────────────────────────── -->
+<main class="flex-1 overflow-y-auto p-6">
+
+  <!-- Dashboard Tab -->
+  <div id="tab-dashboard" class="tab active">
+    <h1 class="text-2xl font-bold text-slate-800 mb-6">Dashboard</h1>
+
+    <!-- Stat cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="card stat-card p-5">
+        <div class="text-3xl mb-1">📦</div>
+        <div class="text-2xl font-bold text-slate-800" id="statStock">—</div>
+        <div class="text-sm text-slate-500">Items in Stock</div>
+      </div>
+      <div class="card stat-card p-5">
+        <div class="text-3xl mb-1">🛒</div>
+        <div class="text-2xl font-bold text-slate-800" id="statPurchases">—</div>
+        <div class="text-sm text-slate-500">Total Purchases</div>
+      </div>
+      <div class="card stat-card p-5">
+        <div class="text-3xl mb-1">💰</div>
+        <div class="text-2xl font-bold text-slate-800" id="statSales">—</div>
+        <div class="text-sm text-slate-500">Total Sales</div>
+      </div>
+      <div class="card stat-card p-5">
+        <div class="text-3xl mb-1">📈</div>
+        <div class="text-2xl font-bold text-green-600" id="statProfit">—</div>
+        <div class="text-sm text-slate-500">Est. Revenue</div>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+      <div class="card p-5">
+        <div class="font-semibold text-slate-700 mb-4">Sales — Last 7 Days</div>
+        <canvas id="salesChart" height="140"></canvas>
+      </div>
+      <div class="card p-5">
+        <div class="font-semibold text-slate-700 mb-4">Payment Methods</div>
+        <canvas id="paymentChart" height="140"></canvas>
+      </div>
+    </div>
+
+    <!-- Recent sales -->
+    <div class="card">
+      <div class="px-5 py-4 font-semibold text-slate-700 border-b border-slate-100">Recent Sales</div>
+      <div id="recentSalesTable"><div class="empty">Connect to your API to load data</div></div>
+    </div>
+  </div>
+
+  <!-- Inventory Tab -->
+  <div id="tab-inventory" class="tab">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold text-slate-800">Inventory</h1>
+      <div class="flex gap-2">
+        <input id="invSearch" type="text" placeholder="Search…" oninput="filterInventory()" />
+        <button class="btn btn-ghost" onclick="loadInventory()">↻ Refresh</button>
+      </div>
+    </div>
+    <div class="card overflow-hidden">
+      <div id="inventoryTable"><div class="empty">Connect to your API to load data</div></div>
+    </div>
+  </div>
+
+  <!-- Purchases Tab -->
+  <div id="tab-purchases" class="tab">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold text-slate-800">Purchases</h1>
+      <button class="btn btn-ghost" onclick="loadPurchases()">↻ Refresh</button>
+    </div>
+    <div class="card overflow-hidden">
+      <div id="purchasesTable"><div class="empty">Connect to your API to load data</div></div>
+    </div>
+  </div>
+
+  <!-- Sales Tab -->
+  <div id="tab-sales" class="tab">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold text-slate-800">Sales</h1>
+      <div class="flex gap-2">
+        <select id="salesFilter" onchange="filterSales()">
+          <option value="all">All payments</option>
+          <option value="cash">Cash</option>
+          <option value="card">Card</option>
+          <option value="transfer">Transfer</option>
+        </select>
+        <button class="btn btn-ghost" onclick="loadSales()">↻ Refresh</button>
+      </div>
+    </div>
+    <div class="card overflow-hidden">
+      <div id="salesTable"><div class="empty">Connect to your API to load data</div></div>
+    </div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────────
+let API_URL   = localStorage.getItem('shopai_url')   || '';
+let AUTH_TOKEN= localStorage.getItem('shopai_token') || '';
+
+document.getElementById('apiUrl').value   = API_URL;
+document.getElementById('authToken').value= AUTH_TOKEN;
+
+function saveApiUrl()  { API_URL = document.getElementById('apiUrl').value.trim().replace(/\/$/, ''); localStorage.setItem('shopai_url', API_URL); }
+function saveToken()   { AUTH_TOKEN = document.getElementById('authToken').value.trim(); localStorage.setItem('shopai_token', AUTH_TOKEN); }
+
+// ── State ────────────────────────────────────────────────────────────────────
+let inventoryData = [], salesData = [], purchasesData = [];
+let salesChart, paymentChart;
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ── API ──────────────────────────────────────────────────────────────────────
+async function api(path) {
+  if (!API_URL) { toast('Set your API URL first'); return null; }
+  try {
+    const res = await fetch(API_URL + path, {
+      headers: { 'Authorization': 'Bearer ' + AUTH_TOKEN, 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) throw new Error(res.status);
+    return await res.json();
+  } catch(e) { toast('API error: ' + e.message); return null; }
+}
+
+// ── Load All ─────────────────────────────────────────────────────────────────
+async function loadAll() {
+  toast('Loading data…');
+  await Promise.all([loadInventory(), loadPurchases(), loadSales(), loadShopInfo()]);
+  buildDashboard();
+  toast('Data loaded ✓');
+}
+
+async function loadShopInfo() {
+  const data = await api('/shop');
+  if (!data) return;
+  document.getElementById('shopName').textContent = data.name || 'My Shop';
+  document.getElementById('businessType').textContent = data.business_type || 'General Store';
+}
+
+async function loadInventory() {
+  const data = await api('/inventory');
+  if (!data) return;
+  inventoryData = Array.isArray(data) ? data : (data.data || []);
+  renderInventory(inventoryData);
+}
+
+async function loadPurchases() {
+  const data = await api('/purchases');
+  if (!data) return;
+  purchasesData = Array.isArray(data) ? data : (data.data || []);
+  renderPurchases(purchasesData);
+}
+
+async function loadSales() {
+  const data = await api('/sales');
+  if (!data) return;
+  salesData = Array.isArray(data) ? data : (data.data || []);
+  renderSales(salesData);
+}
+
+// ── Dashboard ────────────────────────────────────────────────────────────────
+function buildDashboard() {
+  const totalStock = inventoryData.reduce((s, i) => s + (i.quantity || 0), 0);
+  const totalPurchases = purchasesData.reduce((s, p) => s + (parseFloat(p.total_amount) || 0), 0);
+  const totalSales = salesData.reduce((s, sale) => s + (parseFloat(sale.total_amount) || 0), 0);
+  const profit = totalSales - totalPurchases;
+
+  document.getElementById('statStock').textContent     = totalStock.toLocaleString();
+  document.getElementById('statPurchases').textContent = 'Rs ' + fmt(totalPurchases);
+  document.getElementById('statSales').textContent     = 'Rs ' + fmt(totalSales);
+  document.getElementById('statProfit').textContent    = 'Rs ' + fmt(Math.max(0, profit));
+
+  buildSalesChart();
+  buildPaymentChart();
+  renderRecentSales();
+}
+
+function buildSalesChart() {
+  const days = last7Days();
+  const counts = days.map(d => salesData.filter(s => (s.sale_date || s.created_at || '').startsWith(d)).length);
+
+  if (salesChart) salesChart.destroy();
+  salesChart = new Chart(document.getElementById('salesChart'), {
+    type: 'bar',
+    data: {
+      labels: days.map(d => d.slice(5)),
+      datasets: [{ data: counts, backgroundColor: '#818cf8', borderRadius: 6, label: 'Sales' }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+}
+
+function buildPaymentChart() {
+  const cash     = salesData.filter(s => s.payment_method === 'cash').length;
+  const card     = salesData.filter(s => s.payment_method === 'card').length;
+  const transfer = salesData.filter(s => s.payment_method === 'transfer').length;
+
+  if (paymentChart) paymentChart.destroy();
+  paymentChart = new Chart(document.getElementById('paymentChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Cash', 'Card', 'Transfer'],
+      datasets: [{ data: [cash, card, transfer], backgroundColor: ['#4ade80', '#60a5fa', '#a78bfa'], borderWidth: 0 }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } }, cutout: '65%' }
+  });
+}
+
+function renderRecentSales() {
+  const recent = [...salesData].reverse().slice(0, 8);
+  if (!recent.length) { document.getElementById('recentSalesTable').innerHTML = '<div class="empty">No sales yet</div>'; return; }
+
+  const rows = recent.map(s => `
+    <tr>
+      <td class="font-medium">${s.customer_name || '—'}</td>
+      <td>${s.customer_phone || '—'}</td>
+      <td><span class="badge badge-${s.payment_method || 'cash'}">${s.payment_method || 'cash'}</span></td>
+      <td class="font-semibold">Rs ${fmt(s.total_amount)}</td>
+      <td class="text-slate-400">${fmtDate(s.sale_date || s.created_at)}</td>
+    </tr>`).join('');
+
+  document.getElementById('recentSalesTable').innerHTML = `
+    <table>
+      <thead><tr><th>Customer</th><th>Phone</th><th>Payment</th><th>Amount</th><th>Date</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ── Inventory ────────────────────────────────────────────────────────────────
+function renderInventory(data) {
+  if (!data.length) { document.getElementById('inventoryTable').innerHTML = '<div class="empty">No inventory items</div>'; return; }
+
+  const rows = data.map(item => {
+    const fields = item.fields ? JSON.parse(item.fields) : {};
+    const details = Object.entries(fields).map(([k,v]) => `<span class="text-slate-500">${k}:</span> ${v}`).join(' · ');
+    return `<tr>
+      <td class="font-medium">${item.name || (fields.brand ? fields.brand + ' ' + (fields.model || '') : '—')}</td>
+      <td class="text-slate-500 text-xs">${details}</td>
+      <td><span class="font-semibold ${item.quantity < 3 ? 'text-red-600' : 'text-slate-800'}">${item.quantity || 0}</span></td>
+      <td>Rs ${fmt(item.purchase_price || item.unit_price)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('inventoryTable').innerHTML = `
+    <table>
+      <thead><tr><th>Product</th><th>Details</th><th>Stock</th><th>Cost Price</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function filterInventory() {
+  const q = document.getElementById('invSearch').value.toLowerCase();
+  renderInventory(inventoryData.filter(i => JSON.stringify(i).toLowerCase().includes(q)));
+}
+
+// ── Purchases ────────────────────────────────────────────────────────────────
+function renderPurchases(data) {
+  if (!data.length) { document.getElementById('purchasesTable').innerHTML = '<div class="empty">No purchases yet</div>'; return; }
+
+  const rows = data.map(p => `
+    <tr>
+      <td class="font-medium">${p.supplier_name || '—'}</td>
+      <td class="text-slate-500">${p.invoice_number || '—'}</td>
+      <td>${(p.items || []).length || '—'} items</td>
+      <td class="font-semibold">Rs ${fmt(p.total_amount)}</td>
+      <td class="text-slate-400">${fmtDate(p.invoice_date || p.created_at)}</td>
+    </tr>`).join('');
+
+  document.getElementById('purchasesTable').innerHTML = `
+    <table>
+      <thead><tr><th>Supplier</th><th>Invoice #</th><th>Items</th><th>Amount</th><th>Date</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ── Sales ────────────────────────────────────────────────────────────────────
+function renderSales(data) {
+  if (!data.length) { document.getElementById('salesTable').innerHTML = '<div class="empty">No sales yet</div>'; return; }
+
+  const rows = data.map(s => `
+    <tr>
+      <td class="font-medium">${s.customer_name || 'Walk-in'}</td>
+      <td>${s.customer_phone || '—'}</td>
+      <td><span class="badge badge-${s.payment_method || 'cash'}">${s.payment_method || 'cash'}</span></td>
+      <td class="font-semibold">Rs ${fmt(s.total_amount)}</td>
+      <td>${s.notes || '—'}</td>
+      <td class="text-slate-400">${fmtDate(s.sale_date || s.created_at)}</td>
+    </tr>`).join('');
+
+  document.getElementById('salesTable').innerHTML = `
+    <table>
+      <thead><tr><th>Customer</th><th>Phone</th><th>Payment</th><th>Amount</th><th>Notes</th><th>Date</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function filterSales() {
+  const f = document.getElementById('salesFilter').value;
+  renderSales(f === 'all' ? salesData : salesData.filter(s => s.payment_method === f));
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function fmt(n) { return parseFloat(n || 0).toLocaleString('en-PK'); }
+function fmtDate(d) { if (!d) return '—'; try { return new Date(d).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'}); } catch { return d; } }
+function last7Days() { return Array.from({length:7}, (_,i) => { const d = new Date(); d.setDate(d.getDate()-6+i); return d.toISOString().slice(0,10); }); }
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// Auto-load if URL is already set
+if (API_URL && AUTH_TOKEN) loadAll();
+</script>
+</body>
+</html>

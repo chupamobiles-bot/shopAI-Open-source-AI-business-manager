@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ShopAI Demo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:#f1f5f9;margin:0;}
+  .card{background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.08);}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;}
+  .badge-cash{background:#dcfce7;color:#16a34a;}
+  .badge-card{background:#dbeafe;color:#2563eb;}
+  .badge-transfer{background:#ede9fe;color:#7c3aed;}
+  .nav-item{cursor:pointer;padding:10px 16px;border-radius:10px;display:flex;align-items:center;gap:10px;transition:background .15s;font-size:14px;}
+  .nav-item.active{background:rgba(99,102,241,.12);color:#6366f1;font-weight:600;}
+  .tab{display:none;}.tab.active{display:block;}
+  th{text-align:left;padding:10px 16px;font-size:11px;font-weight:600;color:#64748b;background:#f8fafc;text-transform:uppercase;letter-spacing:.05em;}
+  td{padding:11px 16px;border-top:1px solid #f1f5f9;font-size:13px;}
+  tr:hover td{background:#fafbff;}
+  table{width:100%;border-collapse:collapse;}
+</style>
+</head>
+<body class="flex" style="height:100vh;overflow:hidden;">
+
+<!-- Sidebar -->
+<aside style="width:220px;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;padding:16px;flex-shrink:0;">
+  <div style="display:flex;align-items:center;gap:10px;padding:8px;margin-bottom:16px;">
+    <div style="width:36px;height:36px;background:#6366f1;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;">S</div>
+    <div>
+      <div style="font-weight:700;font-size:14px;color:#1e293b;">ShopAI</div>
+      <div style="font-size:11px;color:#94a3b8;" id="bizLabel">Mobile Shop</div>
+    </div>
+  </div>
+  <nav style="display:flex;flex-direction:column;gap:4px;">
+    <div class="nav-item active" id="nav-dashboard">📊 Dashboard</div>
+    <div class="nav-item" id="nav-inventory">📦 Inventory</div>
+    <div class="nav-item" id="nav-purchases">🛒 Purchases</div>
+    <div class="nav-item" id="nav-sales">💰 Sales</div>
+  </nav>
+  <div style="margin-top:auto;padding-top:16px;border-top:1px solid #f1f5f9;">
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Business Type</div>
+    <div id="bizSelector" style="font-size:13px;font-weight:600;color:#6366f1;padding:8px 12px;background:rgba(99,102,241,.08);border-radius:8px;cursor:pointer;text-align:center;"></div>
+    <div style="font-size:10px;color:#cbd5e1;margin-top:6px;text-align:center;">Auto-detecting from invoices</div>
+  </div>
+</aside>
+
+<!-- Main -->
+<main style="flex:1;overflow-y:auto;padding:24px;">
+
+  <!-- Dashboard -->
+  <div id="tab-dashboard" class="tab active">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h1 style="font-size:22px;font-weight:800;color:#1e293b;margin:0;">Dashboard</h1>
+      <div style="font-size:12px;color:#94a3b8;">Today · 08 Jul 2026</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;">
+      <div class="card" style="padding:18px;">
+        <div style="font-size:26px;margin-bottom:4px;">📦</div>
+        <div style="font-size:24px;font-weight:800;color:#1e293b;" id="s1">47</div>
+        <div style="font-size:12px;color:#64748b;">Items in Stock</div>
+      </div>
+      <div class="card" style="padding:18px;">
+        <div style="font-size:26px;margin-bottom:4px;">🛒</div>
+        <div style="font-size:24px;font-weight:800;color:#1e293b;">Rs 8,42,000</div>
+        <div style="font-size:12px;color:#64748b;">Total Purchases</div>
+      </div>
+      <div class="card" style="padding:18px;">
+        <div style="font-size:26px;margin-bottom:4px;">💰</div>
+        <div style="font-size:24px;font-weight:800;color:#1e293b;">Rs 9,15,500</div>
+        <div style="font-size:12px;color:#64748b;">Total Sales</div>
+      </div>
+      <div class="card" style="padding:18px;">
+        <div style="font-size:26px;margin-bottom:4px;">📈</div>
+        <div style="font-size:24px;font-weight:800;color:#16a34a;">Rs 73,500</div>
+        <div style="font-size:12px;color:#64748b;">Est. Revenue</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+      <div class="card" style="padding:18px;">
+        <div style="font-weight:600;color:#334155;margin-bottom:14px;font-size:14px;">Sales — Last 7 Days</div>
+        <canvas id="salesChart" height="130"></canvas>
+      </div>
+      <div class="card" style="padding:18px;">
+        <div style="font-weight:600;color:#334155;margin-bottom:14px;font-size:14px;">Payment Methods</div>
+        <canvas id="payChart" height="130"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div style="padding:14px 18px;font-weight:600;color:#334155;border-bottom:1px solid #f1f5f9;font-size:14px;">Recent Sales</div>
+      <table>
+        <thead><tr><th>Customer</th><th>Phone</th><th>Payment</th><th>Amount</th><th>Date</th></tr></thead>
+        <tbody id="recentBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Inventory -->
+  <div id="tab-inventory" class="tab">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h1 style="font-size:22px;font-weight:800;color:#1e293b;margin:0;">Inventory</h1>
+      <div style="background:#6366f1;color:#fff;padding:6px 16px;border-radius:8px;font-size:13px;font-weight:600;">47 items in stock</div>
+    </div>
+    <div class="card" style="overflow:hidden;">
+      <table>
+        <thead><tr><th>Product</th><th>Details</th><th>Stock</th><th>Cost Price</th></tr></thead>
+        <tbody id="invBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Purchases -->
+  <div id="tab-purchases" class="tab">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h1 style="font-size:22px;font-weight:800;color:#1e293b;margin:0;">Purchases</h1>
+    </div>
+    <div class="card" style="overflow:hidden;">
+      <table>
+        <thead><tr><th>Supplier</th><th>Invoice #</th><th>Items</th><th>Amount</th><th>Date</th></tr></thead>
+        <tbody id="purBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Sales -->
+  <div id="tab-sales" class="tab">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h1 style="font-size:22px;font-weight:800;color:#1e293b;margin:0;">Sales</h1>
+    </div>
+    <div class="card" style="overflow:hidden;">
+      <table>
+        <thead><tr><th>Customer</th><th>Phone</th><th>Payment</th><th>Amount</th><th>Date</th></tr></thead>
+        <tbody id="salesBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── Demo data ────────────────────────────────────────────────────────────────
+const BUSINESSES = [
+  { name: 'Mobile Shop',    items: [['Samsung','Galaxy A55 5G','128GB','Black',3,42000],['Apple','iPhone 15 Pro Max','256GB','Titanium',1,285000],['Vivo','T3X 5G (6+128)','128GB','Purple',5,18500],['OPPO','A3 Pro','256GB','Gray',2,24000],['Xiaomi','14T Pro','512GB','Titan Black',4,89000]] },
+  { name: 'Pharmacy',       items: [['Paracetamol','500mg Tablet','GSK','10s',40,35],['Amoxicillin','250mg Cap','Pfizer','14s',25,120],['Metformin','500mg Tab','ICI','30s',60,95],['Omeprazole','20mg Cap','Sami',null,35,75],['Vitamin C','1000mg Eff','Bayer','10s',80,180]] },
+  { name: 'Grocery Store',  items: [['Basmati Rice','Falak','25kg Bag',null,12,3200],['Sunflower Oil','Sufi','5L Bottle',null,24,1850],['Sugar','Fine','1kg Pack',null,50,170],['Flour','Bake Perfect','10kg',null,18,1100],['Tea','Tapal Danedar','450g',null,36,650]] },
+  { name: 'Auto Parts',     items: [['Oil Filter','Bosch','Toyota Corolla','New',8,850],['Brake Pad Set','Brembo','Honda Civic','New',4,2200],['Air Filter','Denso','Suzuki Alto','New',12,650],['Spark Plug','NGK','Universal','New',30,180],['Fan Belt','Continental','Hyundai i10','New',6,420]] },
+];
+
+const SALES = [
+  {name:'Ahmed Khan',   phone:'0300-1234567', pay:'cash',     amt:42000, date:'08 Jul 2026'},
+  {name:'Sara Malik',   phone:'0321-9876543', pay:'card',     amt:285000,date:'08 Jul 2026'},
+  {name:'Rohan Bansa',  phone:'9045056303',   pay:'cash',     amt:18500, date:'07 Jul 2026'},
+  {name:'Priya Sharma', phone:'98XXXXXXX012', pay:'transfer', amt:24000, date:'07 Jul 2026'},
+  {name:'Walk-in',      phone:'—',            pay:'cash',     amt:89000, date:'06 Jul 2026'},
+  {name:'Ali Hassan',   phone:'0333-5551234', pay:'card',     amt:35000, date:'06 Jul 2026'},
+  {name:'Maria Garcia', phone:'+34 612 345',  pay:'transfer', amt:67000, date:'05 Jul 2026'},
+  {name:'Tanaka Yuki',  phone:'+81 90 1234',  pay:'card',     amt:125000,date:'05 Jul 2026'},
+];
+
+const PURCHASES = [
+  {sup:'Sahil Mobile Comm.',   inv:'INV-2847', items:3, amt:145000, date:'07 Jul 2026'},
+  {sup:'Metro Distributors',   inv:'MD-9934',  items:5, amt:312000, date:'05 Jul 2026'},
+  {sup:'Crown Electronics',    inv:'CE-1102',  items:2, amt:89500,  date:'03 Jul 2026'},
+  {sup:'Zara Wholesale',       inv:'ZW-4451',  items:8, amt:195000, date:'01 Jul 2026'},
+  {sup:'Global Tech Imports',  inv:'GT-0078',  items:4, amt:221500, date:'28 Jun 2026'},
+];
+
+let bizIdx = 0;
+let chartS, chartP;
+
+function setBiz(idx) {
+  bizIdx = idx % BUSINESSES.length;
+  const b = BUSINESSES[bizIdx];
+  document.getElementById('bizLabel').textContent    = b.name;
+  document.getElementById('bizSelector').textContent = b.name;
+  renderInventory(b);
+  renderPurchases();
+  renderSales();
+  renderRecent();
+}
+
+function renderInventory(b) {
+  document.getElementById('invBody').innerHTML = b.items.map(it => {
+    const details = it[2] + (it[3] ? ' · ' + it[3] : '');
+    return `<tr>
+      <td style="font-weight:600;">${it[0]} ${it[1]}</td>
+      <td style="color:#64748b;font-size:12px;">${details}</td>
+      <td><span style="font-weight:700;color:${it[4]<3?'#dc2626':'#1e293b'}">${it[4]}</span></td>
+      <td>Rs ${it[5].toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPurchases() {
+  document.getElementById('purBody').innerHTML = PURCHASES.map(p => `
+    <tr>
+      <td style="font-weight:600;">${p.sup}</td>
+      <td style="color:#64748b;">${p.inv}</td>
+      <td>${p.items} items</td>
+      <td style="font-weight:600;">Rs ${p.amt.toLocaleString()}</td>
+      <td style="color:#94a3b8;">${p.date}</td>
+    </tr>`).join('');
+}
+
+function renderSales() {
+  document.getElementById('salesBody').innerHTML = SALES.map(s => `
+    <tr>
+      <td style="font-weight:600;">${s.name}</td>
+      <td style="color:#64748b;">${s.phone}</td>
+      <td><span class="badge badge-${s.pay}">${s.pay}</span></td>
+      <td style="font-weight:600;">Rs ${s.amt.toLocaleString()}</td>
+      <td style="color:#94a3b8;">${s.date}</td>
+    </tr>`).join('');
+}
+
+function renderRecent() {
+  document.getElementById('recentBody').innerHTML = SALES.slice(0,5).map(s => `
+    <tr>
+      <td style="font-weight:600;">${s.name}</td>
+      <td style="color:#64748b;">${s.phone}</td>
+      <td><span class="badge badge-${s.pay}">${s.pay}</span></td>
+      <td style="font-weight:600;">Rs ${s.amt.toLocaleString()}</td>
+      <td style="color:#94a3b8;">${s.date}</td>
+    </tr>`).join('');
+}
+
+function buildCharts() {
+  if (chartS) chartS.destroy();
+  if (chartP) chartP.destroy();
+  chartS = new Chart(document.getElementById('salesChart'), {
+    type:'bar',
+    data:{
+      labels:['02 Jul','03 Jul','04 Jul','05 Jul','06 Jul','07 Jul','08 Jul'],
+      datasets:[{data:[4,7,3,9,6,8,5],backgroundColor:'#818cf8',borderRadius:6,label:'Sales'}]
+    },
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:2}}}}
+  });
+  chartP = new Chart(document.getElementById('payChart'), {
+    type:'doughnut',
+    data:{
+      labels:['Cash','Card','Transfer'],
+      datasets:[{data:[18,11,7],backgroundColor:['#4ade80','#60a5fa','#a78bfa'],borderWidth:0}]
+    },
+    options:{plugins:{legend:{position:'bottom'}},cutout:'65%'}
+  });
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('nav-'+name).classList.add('active');
+}
+
+// ── Auto-play sequence ───────────────────────────────────────────────────────
+// Opens in browser and animates itself — just hit record!
+const SEQUENCE = [
+  { fn: ()=>{ setBiz(0); showTab('dashboard'); buildCharts(); }, hold: 2200 },
+  { fn: ()=>{ showTab('inventory'); },                           hold: 1800 },
+  { fn: ()=>{ showTab('sales'); },                              hold: 1600 },
+  { fn: ()=>{ showTab('purchases'); },                          hold: 1600 },
+  { fn: ()=>{ setBiz(1); showTab('dashboard'); buildCharts(); }, hold: 2200 },
+  { fn: ()=>{ showTab('inventory'); },                           hold: 1800 },
+  { fn: ()=>{ setBiz(2); showTab('dashboard'); buildCharts(); }, hold: 2200 },
+  { fn: ()=>{ showTab('inventory'); },                           hold: 1800 },
+  { fn: ()=>{ setBiz(3); showTab('dashboard'); buildCharts(); }, hold: 2200 },
+  { fn: ()=>{ showTab('inventory'); },                           hold: 1800 },
+  { fn: ()=>{ setBiz(0); showTab('dashboard'); buildCharts(); }, hold: 2400 },
+];
+
+let seqIdx = 0;
+function runNext() {
+  const step = SEQUENCE[seqIdx % SEQUENCE.length];
+  step.fn();
+  seqIdx++;
+  setTimeout(runNext, step.hold);
+}
+
+// Show a "▶ Recording starts in 3s" banner then auto-play
+const banner = document.createElement('div');
+banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#6366f1;color:#fff;text-align:center;padding:10px;font-size:14px;font-weight:600;z-index:9999;letter-spacing:.5px;';
+banner.textContent = '⏺  Demo auto-plays in 3 seconds — start your screen recorder now!';
+document.body.appendChild(banner);
+
+let countdown = 3;
+const timer = setInterval(()=>{
+  countdown--;
+  if (countdown > 0) {
+    banner.textContent = `⏺  Starting in ${countdown}…`;
+  } else {
+    clearInterval(timer);
+    banner.style.background = '#16a34a';
+    banner.textContent = '⏺  Recording — ShopAI works for any business type, any language';
+    setTimeout(() => banner.remove(), 28000);
+    setBiz(0); buildCharts();
+    setTimeout(runNext, 2200);
+  }
+}, 1000);
+
+// Init
+setBiz(0); buildCharts();
+</script>
+</body>
+</html>
